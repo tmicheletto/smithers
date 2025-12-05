@@ -1,5 +1,7 @@
 """Configuration for the agentic application."""
 
+from pathlib import Path
+
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
 
@@ -17,8 +19,9 @@ class Settings(BaseSettings):
     - Constructor arguments
     """
 
-    # Model configuration
-    model: str = "gemini-2.5-flash-lite"
+    # Model configuration (LLM identifier)
+    # Align with LangChain `ChatOpenAI` model used in the chain.
+    model: str = "gpt-4o-mini"
 
     # Logging configuration
     enable_logfire: bool = True
@@ -30,16 +33,34 @@ class Settings(BaseSettings):
     api_timeout: int = 30
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: list[str] = ["*"]  # Configure for production
+    cors_origins: list[str] = ["*"]
+
+    # RAG configuration
+    class RAGSettings(BaseSettings):
+        """Configuration for RAG system."""
+
+        index_name: str = "smithers-knowledge-index"
+        embedding_model: str = "text-embedding-3-small"
+        search_top_k: int = 5
+        dimension: int = 1536  # text-embedding-3-small output dimension
+
+        class Config:
+            """Pydantic settings configuration."""
+
+            env_prefix = "RAG_"
+
+    rag: RAGSettings = RAGSettings()
+    data_dir: Path = Path(__file__).parent.parent.parent / "data"
 
     # API Keys (loaded from .env, made available in environment for providers)
-    google_api_key: str | None = None
+    openai_api_key: str | None = None
 
     class Config:
         """Pydantic settings configuration."""
 
         env_file = ".env"
         case_sensitive = False
+        extra = "ignore"  # Ignore extra environment variables
 
 
 # Global settings instance
