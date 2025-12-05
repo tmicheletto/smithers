@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(test:*)",
+      "Bash(uvicorn:*)",
+      "Bash(uv run uvicorn:*)",
+      "Bash(curl:*)",
+      "Bash(python3:*)",
+      "Bash(uv run python3:*)",
+      "WebSearch",
+      "Bash(uv sync:*)",
+      "Bash(uv pip list:*)",
+      "Bash(uv run python:*)",
+      "Bash(uv pip install:*)",
+      "Bash(uv run pytest:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

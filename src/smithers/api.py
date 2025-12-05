@@ -106,10 +106,15 @@ async def chat(request: ChatRequest):
     user_msg = ChatMessage(role="user", content=request.message)
     sessions[session_id].append(user_msg)
 
-    # Build conversation history for future use (not yet threaded into chain)
-    conversation_history = [
-        {"role": msg.role, "content": msg.content} for msg in sessions[session_id]
-    ]
+    # Build conversation history as messages (skip last user message as it's handled separately)
+    from langchain_core.messages import HumanMessage, AIMessage
+
+    message_history = []
+    for msg in sessions[session_id][:-1]:  # Skip the current message we just added
+        if msg.role == "user":
+            message_history.append(HumanMessage(content=msg.content))
+        elif msg.role == "assistant":
+            message_history.append(AIMessage(content=msg.content))
 
     try:
         logger.info(
@@ -119,13 +124,18 @@ async def chat(request: ChatRequest):
                 "message_len": len(request.message),
             },
         )
-        # Invoke LangChain RAG chain (non-streaming)
-        assistant_message = chain.invoke(
-            {
-                "question": request.message,
-                "chat_history": conversation_history,
-            }
-        )
+        # Invoke LangChain agent with messages
+        # Agent expects list of messages
+        messages = message_history + [HumanMessage(content=request.message)]
+        result = chain.invoke({"messages": messages})
+
+        # Extract the last AI message from result
+        if isinstance(result, dict) and "messages" in result:
+            # Get the last message from the agent
+            last_msg = result["messages"][-1]
+            assistant_message = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+        else:
+            assistant_message = str(result)
 
         # Add assistant message to history
         assistant_msg = ChatMessage(role="assistant", content=assistant_message)
@@ -167,25 +177,40 @@ async def chat_stream(request: ChatRequest):
     user_msg = ChatMessage(role="user", content=request.message)
     sessions[session_id].append(user_msg)
 
-    # Build conversation history
-    conversation_history = [
-        {"role": msg.role, "content": msg.content} for msg in sessions[session_id]
-    ]
+    # Build conversation history as messages
+    from langchain_core.messages import HumanMessage, AIMessage
+
+    message_history = []
+    for msg in sessions[session_id][:-1]:  # Skip the current message
+        if msg.role == "user":
+            message_history.append(HumanMessage(content=msg.content))
+        elif msg.role == "assistant":
+            message_history.append(AIMessage(content=msg.content))
 
     async def event_stream():
         """Generate Server-Sent Events for streaming response."""
         try:
             accumulated = ""
-            # Stream tokens from the chain
-            for chunk in chain.stream(
-                {
-                    "question": request.message,
-                    "chat_history": conversation_history,
-                }
-            ):
-                text = str(chunk)
-                accumulated += text
-                yield f"data: {text}\n\n"
+            messages = message_history + [HumanMessage(content=request.message)]
+
+            # Stream from the agent
+            for chunk in chain.stream({"messages": messages}):
+                # Handle different chunk types from agent
+                if isinstance(chunk, dict):
+                    # Look for messages in the chunk
+                    if "messages" in chunk:
+                        # Get the last message if it's new
+                        last_msg = chunk["messages"][-1]
+                        if hasattr(last_msg, "content"):
+                            text = last_msg.content
+                            # Only yield if this is new content
+                            if text and text not in accumulated:
+                                accumulated = text
+                                yield f"data: {text}\n\n"
+                else:
+                    text = str(chunk)
+                    accumulated += text
+                    yield f"data: {text}\n\n"
 
             # After streaming, add final message to history and emit session id
             assistant_msg = ChatMessage(role="assistant", content=accumulated)

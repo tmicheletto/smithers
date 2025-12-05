@@ -1,76 +1,85 @@
-"""LangChain chain wiring for Smithers RAG chat using OpenAI.
+"""LangChain agent wiring for Smithers using OpenAI with tools.
 
-Option A: Build an LC chain that uses `LCVectorStoreRetriever` to
-reuse the existing OpenAI Vector Store without reindexing. The chain
-combines a prompt, retriever, and `ChatOpenAI` model `gpt-40-mini`.
+The agent has access to:
+- Knowledge base search tool (RAG over markdown docs)
+- Surf forecast tool (Open-Meteo Marine API)
+
+Uses OpenAI function calling for reliable tool use.
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.runnables import RunnableLambda, RunnablePassthrough
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import StrOutputParser
+from langchain.agents import create_agent
 
-from smithers.rag.retriever import Retriever
+from smithers.tools import get_knowledge_search_tool, get_surf_forecast_tool
 from smithers.config import settings
 
 
-def _format_docs(docs: list) -> str:
-    """Concatenate documents as context for the prompt."""
-    parts = []
-    for d in docs:
-        meta = d.metadata or {}
-        source = meta.get("source") or meta.get("path") or meta.get("title")
-        header = f"Source: {source}" if source else ""
-        parts.append(f"{header}\n{d.page_content}")
-    return "\n\n".join(parts)
+def _format_chat_history(history: list[dict]) -> list:
+    """Convert chat history dicts to LangChain message objects.
+
+    Excludes the current question (last user message) since it's
+    passed separately in the prompt.
+
+    Args:
+        history: List of message dicts with 'role' and 'content' keys.
+
+    Returns:
+        List of LangChain message objects (HumanMessage, AIMessage).
+    """
+    messages = []
+    # Skip last message (current question)
+    for msg in history[:-1]:
+        if msg["role"] == "user":
+            messages.append(HumanMessage(content=msg["content"]))
+        elif msg["role"] == "assistant":
+            messages.append(AIMessage(content=msg["content"]))
+    return messages
 
 
 def build_chain() -> Any:
-    """Construct the LangChain `Runnable` for RAG chat.
+    """Construct the LangChain agent with tools.
 
-    Returns a chain that accepts an input dict with keys:
-    - `question`: user query string
-    - `chat_history` (optional): list of prior messages (unused in this
-      minimal implementation but can be threaded later)
+    Returns a CompiledStateGraph that can be invoked with messages.
+    The agent has access to:
+    - search_knowledge_base: Search markdown documents
+    - get_surf_forecast: Get wave/wind conditions for surf spots
     """
-    retriever = Retriever(k=5)
+    # Initialize tools
+    tools = [
+        get_knowledge_search_tool(),
+        get_surf_forecast_tool(),
+    ]
 
-    prompt = ChatPromptTemplate.from_messages(
-        [
-            (
-                "system",
-                "You are Smithers, a concise, helpful assistant."
-                " Use the provided context to answer accurately."
-                " If the answer is not in the context, say you don't know.",
-            ),
-            (
-                "human",
-                "Question: {question}\n\nContext:\n{context}",
-            ),
-        ]
+    # System prompt
+    system_prompt = (
+        "You are Smithers, a helpful assistant with access to tools.\n\n"
+        "You can:\n"
+        "- Search the knowledge base for information (use search_knowledge_base)\n"
+        "- Get surf forecasts for locations (use get_surf_forecast)\n\n"
+        "For surf forecasts:\n"
+        "- Common spots: Pipeline (21.6644, -158.0533), Mavericks (37.4936, -122.4969), "
+        "Huntington Beach (33.6584, -118.0056), Trestles (33.3720, -117.5901)\n"
+        "- If user gives a location name, use your knowledge to estimate coordinates or ask for them\n\n"
+        "Be concise and helpful. Use tools when needed."
     )
 
-    # Model: OpenAI gpt-4o-mini with deterministic behavior.
+    # Model: OpenAI gpt-4o-mini with function calling
     llm = ChatOpenAI(
         model="gpt-4o-mini",
         temperature=0,
         api_key=settings.openai_api_key,
     )
 
-    # Map input -> retrieve -> format -> prompt -> llm -> parse
-    chain = (
-        {
-            "context": RunnableLambda(lambda x: retriever.invoke(x["question"]))
-            | RunnableLambda(_format_docs),
-            "question": RunnablePassthrough(),
-        }
-        | prompt
-        | llm
-        | StrOutputParser()
+    # Create agent using new API
+    agent = create_agent(
+        model=llm,
+        tools=tools,
+        system_prompt=system_prompt,
     )
 
-    return chain
+    return agent
