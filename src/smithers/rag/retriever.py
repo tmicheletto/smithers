@@ -8,12 +8,12 @@ enabling LangChain chains to consume retrieval outputs.
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import List
 
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 
-from smithers.rag.vector_store import VectorStore
+from smithers.rag.vector_store import VectorStore, VectorStoreLike
 
 
 class Retriever(BaseRetriever):
@@ -23,7 +23,12 @@ class Retriever(BaseRetriever):
     `Document` objects with `page_content` and `metadata` fields.
     """
 
-    def __init__(self, *, k: int = 4, vector_store: Any | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        k: int = 4,
+        vector_store: VectorStoreLike = VectorStore(),
+    ) -> None:
         """Initialize the retriever.
 
         Parameters:
@@ -35,7 +40,7 @@ class Retriever(BaseRetriever):
         """
         super().__init__()
         self._k = k
-        self._vector_store = vector_store or VectorStore()
+        self._vector_store: VectorStoreLike = vector_store
 
     def _get_relevant_documents(self, query: str) -> List[Document]:
         """Retrieve top-k relevant documents for the given query.

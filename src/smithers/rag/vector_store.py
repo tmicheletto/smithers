@@ -5,13 +5,29 @@ Uses OpenAI's vector stores API for cloud-based document storage and retrieval.
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from openai import OpenAI
 
 from smithers.config import settings
 
 logger = logging.getLogger(__name__)
+
+class VectorStoreLike(Protocol):
+    """Minimal protocol for vector store backends used by `Retriever`.
+
+    Both the production `VectorStore` and test in-memory implementations
+    should implement this interface so they can be passed into
+    `Retriever(vector_store=...)` without resorting to `Any` types.
+    """
+
+    def search(self, query: str, k: int = 5) -> list[dict[str, Any]]:  # pragma: no cover - structural
+        """Return up to ``k`` results for ``query``.
+
+        Implementations should return dictionaries containing at least
+        ``content`` (or ``text``) and optional ``metadata``.
+        """
+
 
 # Initialize OpenAI client
 client = OpenAI(api_key=settings.openai_api_key)

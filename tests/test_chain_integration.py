@@ -7,9 +7,10 @@ from langchain_openai import ChatOpenAI
 
 from smithers.config import settings
 from smithers.rag.retriever import Retriever
+from smithers.rag.vector_store import VectorStoreLike
 
 
-class InMemoryVectorStore:
+class InMemoryVectorStore(VectorStoreLike):
     """Simple in-memory vector store used only for tests.
 
     Stores small text snippets and returns them using a naive
