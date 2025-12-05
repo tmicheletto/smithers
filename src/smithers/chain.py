@@ -7,7 +7,7 @@ combines a prompt, retriever, and `ChatOpenAI` model `gpt-40-mini`.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -45,7 +45,7 @@ def build_chain() -> Any:
                 "system",
                 "You are Smithers, a concise, helpful assistant."
                 " Use the provided context to answer accurately."
-                " If the answer is not in the context, say you don't know."
+                " If the answer is not in the context, say you don't know.",
             ),
             (
                 "human",

@@ -9,9 +9,7 @@ from smithers.config import Settings
 from smithers.rag.vector_store import VectorStore
 
 
-def get_markdown_files(
-    data_dir: Path, max_files: int | None = None
-) -> list[Path]:
+def get_markdown_files(data_dir: Path, max_files: int | None = None) -> list[Path]:
     """Get markdown files from a directory.
 
     Args:
@@ -72,7 +70,6 @@ def batch_upload_files(
                 continue
 
     return successful_uploads
-
 
 
 def index_knowledge_base(

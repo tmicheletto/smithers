@@ -8,7 +8,7 @@ enabling LangChain chains to consume retrieval outputs.
 
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List
 
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
@@ -23,15 +23,19 @@ class Retriever(BaseRetriever):
     `Document` objects with `page_content` and `metadata` fields.
     """
 
-    def __init__(self, *, k: int = 4) -> None:
+    def __init__(self, *, k: int = 4, vector_store: Any | None = None) -> None:
         """Initialize the retriever.
 
         Parameters:
             k: Default number of documents to retrieve.
+            vector_store: Optional backend implementation used for search.
+                Defaults to the production `VectorStore` when not provided,
+                but can be replaced (e.g. with an in-memory implementation)
+                in tests.
         """
         super().__init__()
         self._k = k
-        self._vector_store = VectorStore()
+        self._vector_store = vector_store or VectorStore()
 
     def _get_relevant_documents(self, query: str) -> List[Document]:
         """Retrieve top-k relevant documents for the given query.

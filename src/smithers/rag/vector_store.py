@@ -74,7 +74,9 @@ class VectorStore:
 
         self._vector_store = client.vector_stores.create(name=self.store_name)
         self._vector_store_id = self._vector_store.id
-        logger.info(f"OpenAI vector store created: {self.store_name} (ID: {self._vector_store_id})")
+        logger.info(
+            f"OpenAI vector store created: {self.store_name} (ID: {self._vector_store_id})"
+        )
 
     def upload_file(self, file_path: str | Path) -> str:
         """Upload a file to the OpenAI vector store for automatic chunking and embedding.
@@ -92,9 +94,7 @@ class VectorStore:
             RuntimeError: If file upload fails.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         file_path = Path(file_path)
 
@@ -116,9 +116,7 @@ class VectorStore:
                 file=fh,
             )
 
-        logger.info(
-            f"File uploaded successfully: {file_path.name} (ID: {response.id})"
-        )
+        logger.info(f"File uploaded successfully: {file_path.name} (ID: {response.id})")
         return response.id
 
     def batch_upload_files(self, file_paths: list[Path] | list[str]) -> dict[str, int]:
@@ -136,14 +134,14 @@ class VectorStore:
             ValueError: If vector store is not initialized.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         file_paths = [Path(fp) for fp in file_paths]
         results = {"successful": 0, "failed": 0, "failed_files": []}
 
-        logger.info(f"Batch uploading {len(file_paths)} files to vector store using batch API")
+        logger.info(
+            f"Batch uploading {len(file_paths)} files to vector store using batch API"
+        )
 
         # Open all file handles for batch upload
         file_handles: list[Any] = []
@@ -151,10 +149,12 @@ class VectorStore:
             for file_path in file_paths:
                 if not file_path.exists():
                     results["failed"] += 1
-                    results["failed_files"].append({
-                        "path": str(file_path),
-                        "error": "File not found",
-                    })
+                    results["failed_files"].append(
+                        {
+                            "path": str(file_path),
+                            "error": "File not found",
+                        }
+                    )
                     continue
                 file_handles.append(open(file_path, "rb"))
 
@@ -185,7 +185,6 @@ class VectorStore:
         )
         return results
 
-
     def upsert_datapoints(self, datapoints: list[dict[str, Any]]) -> None:
         """Upsert embeddings with metadata to OpenAI vector store.
 
@@ -197,9 +196,7 @@ class VectorStore:
             RuntimeError: If upserting fails.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         logger.info(f"Upserting {len(datapoints)} datapoints to OpenAI vector store")
 
@@ -254,9 +251,7 @@ class VectorStore:
             RuntimeError: If search fails.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         logger.info(
             f"Searching vector store with query: {query if isinstance(query, str) else 'embedding'}"
@@ -388,9 +383,7 @@ class VectorStore:
             ValueError: If vector store is not initialized.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         files = client.vector_stores.files.list(self._vector_store_id)
         logger.info(f"Found {len(files.data)} files in vector store")
@@ -425,9 +418,7 @@ class VectorStore:
             RuntimeError: If deletion fails.
         """
         if not self._vector_store_id:
-            raise ValueError(
-                "Vector store not initialized. Call create_store() first."
-            )
+            raise ValueError("Vector store not initialized. Call create_store() first.")
 
         client.vector_stores.files.delete(
             vector_store_id=self._vector_store_id,

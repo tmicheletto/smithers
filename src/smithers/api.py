@@ -112,15 +112,20 @@ async def chat(request: ChatRequest):
     ]
 
     try:
-        logger.info("Chat request", extra={
-            "session_id": session_id,
-            "message_len": len(request.message),
-        })
+        logger.info(
+            "Chat request",
+            extra={
+                "session_id": session_id,
+                "message_len": len(request.message),
+            },
+        )
         # Invoke LangChain RAG chain (non-streaming)
-        assistant_message = chain.invoke({
-            "question": request.message,
-            "chat_history": conversation_history,
-        })
+        assistant_message = chain.invoke(
+            {
+                "question": request.message,
+                "chat_history": conversation_history,
+            }
+        )
 
         # Add assistant message to history
         assistant_msg = ChatMessage(role="assistant", content=assistant_message)
@@ -131,10 +136,13 @@ async def chat(request: ChatRequest):
             session_id=session_id,
             timestamp=datetime.now(),
         )
-        logger.info("Chat response", extra={
-            "session_id": session_id,
-            "response_len": len(assistant_message),
-        })
+        logger.info(
+            "Chat response",
+            extra={
+                "session_id": session_id,
+                "response_len": len(assistant_message),
+            },
+        )
         return response
 
     except Exception as e:
@@ -169,10 +177,12 @@ async def chat_stream(request: ChatRequest):
         try:
             accumulated = ""
             # Stream tokens from the chain
-            for chunk in chain.stream({
-                "question": request.message,
-                "chat_history": conversation_history,
-            }):
+            for chunk in chain.stream(
+                {
+                    "question": request.message,
+                    "chat_history": conversation_history,
+                }
+            ):
                 text = str(chunk)
                 accumulated += text
                 yield f"data: {text}\n\n"
@@ -180,10 +190,13 @@ async def chat_stream(request: ChatRequest):
             # After streaming, add final message to history and emit session id
             assistant_msg = ChatMessage(role="assistant", content=accumulated)
             sessions[session_id].append(assistant_msg)
-            logger.info("Stream completed", extra={
-                "session_id": session_id,
-                "bytes": len(accumulated),
-            })
+            logger.info(
+                "Stream completed",
+                extra={
+                    "session_id": session_id,
+                    "bytes": len(accumulated),
+                },
+            )
             yield f"event: session\ndata: {session_id}\n\n"
 
         except Exception as e:
@@ -207,7 +220,9 @@ async def get_history(session_id: str):
         List of messages in the conversation.
     """
     if session_id not in sessions:
-        logger.warning("History requested for missing session", extra={"session_id": session_id})
+        logger.warning(
+            "History requested for missing session", extra={"session_id": session_id}
+        )
         raise HTTPException(status_code=404, detail="Session not found")
 
     return {"session_id": session_id, "messages": sessions[session_id]}
@@ -228,5 +243,7 @@ async def delete_session(session_id: str):
         logger.info("Session deleted", extra={"session_id": session_id})
         return {"message": "Session deleted"}
 
-    logger.warning("Delete requested for missing session", extra={"session_id": session_id})
+    logger.warning(
+        "Delete requested for missing session", extra={"session_id": session_id}
+    )
     raise HTTPException(status_code=404, detail="Session not found")
